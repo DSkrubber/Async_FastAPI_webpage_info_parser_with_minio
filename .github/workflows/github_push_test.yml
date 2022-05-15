@@ -2,7 +2,7 @@ name: github_pust_test
 on: [push]
 
 jobs:
-  test_parser:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
