@@ -1,0 +1,302 @@
+openapi: 3.0.2
+info:
+  title: Async get websites info and pictures
+  version: 0.1.0
+paths:
+  /websites:
+    post:
+      tags:
+      - Websites info
+      summary: Save new website entities in database and start parsing.
+      description: 'Each website entity is saved in "pending" status by default. Sends
+        kafka
+
+        topic message for "parser" microservice to start gathering info for
+
+        provided websites. Each website url must be unique.'
+      operationId: post_website_websites_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Urls
+              minItems: 1
+              uniqueItems: true
+              type: array
+              items:
+                maxLength: 2083
+                minLength: 1
+                type: string
+                format: uri
+            example:
+            - http://site_1.com
+            - http://site_2.com
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                title: Response Post Website Websites Post
+                type: array
+                items:
+                  $ref: '#/components/schemas/WebsiteOutSchema'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionErrorSchema'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /websites/{website_id}:
+    get:
+      tags:
+      - Websites info
+      summary: Get parsing info and status for website_id from database.
+      description: 'If parsing hasn''t started yet - return status "pending", otherwise
+        -
+
+        return status "in_progress". If parsing is finished with errors - return
+
+        status "failed". If all data ("html_length" and "pictures_keys") is parsed
+
+        successfully - returns "finished" status.'
+      operationId: get_website_websites__website_id__get
+      parameters:
+      - required: true
+        schema:
+          title: Website Id
+          type: integer
+        example: 1
+        name: website_id
+        in: path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebsiteOutSchema'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionErrorSchema'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Websites info
+      summary: Delete website with provided website_id from database.
+      description: Also deletes all associated with website objects from minio storage.
+      operationId: delete_website_websites__website_id__delete
+      parameters:
+      - required: true
+        schema:
+          title: Website Id
+          type: integer
+        example: 1
+        name: website_id
+        in: path
+      responses:
+        '204':
+          description: Successful Response
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionErrorSchema'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /websites/{website_id}/picture_links:
+    get:
+      tags:
+      - Websites info
+      summary: Get pictures urls for website (website_id) from minio storage.
+      description: Return array of presigned urls that will be valid for 5 minutes.
+      operationId: get_pictures_links_websites__website_id__picture_links_get
+      parameters:
+      - required: true
+        schema:
+          title: Website Id
+          type: integer
+        example: 1
+        name: website_id
+        in: path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                title: Response Get Pictures Links Websites  Website Id  Picture Links
+                  Get
+                type: array
+                items:
+                  type: string
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionErrorSchema'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    BadRequestErrorSchema:
+      title: BadRequestErrorSchema
+      required:
+      - detail
+      type: object
+      properties:
+        detail:
+          title: Detail
+          type: string
+      example:
+        detail: 'Error: Bad request.'
+    ConnectionErrorSchema:
+      title: ConnectionErrorSchema
+      required:
+      - detail
+      type: object
+      properties:
+        detail:
+          title: Detail
+          type: string
+      example:
+        detail: 'Error: Connection error.'
+    HTTPValidationError:
+      title: HTTPValidationError
+      type: object
+      properties:
+        detail:
+          title: Detail
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+    NotFoundErrorSchema:
+      title: NotFoundErrorSchema
+      required:
+      - detail
+      type: object
+      properties:
+        detail:
+          title: Detail
+          type: string
+      example:
+        detail: 'Error: Resource was not found.'
+    ParsingStatus:
+      title: ParsingStatus
+      enum:
+      - pending
+      - in_progress
+      - failed
+      - finished
+      type: string
+      description: An enumeration.
+    ValidationError:
+      title: ValidationError
+      required:
+      - loc
+      - msg
+      - type
+      type: object
+      properties:
+        loc:
+          title: Location
+          type: array
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
+    WebsiteOutSchema:
+      title: WebsiteOutSchema
+      required:
+      - website_id
+      - url
+      - pictures_keys
+      - parsing_status
+      - created_at
+      type: object
+      properties:
+        website_id:
+          title: Website Id
+          type: integer
+          example: 1
+        url:
+          title: Url
+          type: string
+          example: http://site_1.com
+        html_length:
+          title: Html Length
+          type: integer
+          example: 1024
+        pictures_keys:
+          title: Pictures Keys
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+          example:
+          - site/picture_1.jpeg
+          - site/picture_2.png
+        parsing_status:
+          allOf:
+          - $ref: '#/components/schemas/ParsingStatus'
+          example: in_progress
+        created_at:
+          title: Created At
+          type: string
+          format: date-time
+          example: '2021-10-19 01:01:01'
