@@ -19,5 +19,5 @@ KAFKA_UPDATER_TOPIC = os.environ.get("KAFKA_UPDATER_TOPIC", "updater")
 
 PARSER_GROUP_ID = "parsers"
 
-with open("./app/user_agents.txt") as agents_file:
+with open("./documentation/user_agents.txt") as agents_file:
     USER_AGENTS = [agent.rstrip() for agent in agents_file]
