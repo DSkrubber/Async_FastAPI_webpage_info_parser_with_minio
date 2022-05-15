@@ -82,12 +82,20 @@ main_logger = get_logger(__name__)
 
 @app.on_event("startup")
 async def startup_event() -> None:
+    """Creates aiokafka producer and consumer task on web application startup.
+
+    :return: None.
+    """
     await create_producer()
     asyncio.create_task(update_website_parameters())
 
 
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
+    """Stops aiokafka consumer and producer on web application shutdown.
+
+    :return: None
+    """
     producer = producers[KAFKA_PARSER_TOPIC]
     if producer:
         await producer.stop()

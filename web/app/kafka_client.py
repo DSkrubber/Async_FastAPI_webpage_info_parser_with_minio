@@ -43,7 +43,7 @@ async def create_producer() -> AIOKafkaProducer:
 async def send_kafka_message(
     producer: AIOKafkaProducer, message: Dict[str, List[HttpUrl]]
 ) -> None:
-    """
+    """Sends provided message to "parser" topic via AIOKafkaProducer.
 
     :param producer: AIOKafkaProducer instance connected to bootstrap_server.
     :param message: Dict with key: values data to send via kafka topic.
