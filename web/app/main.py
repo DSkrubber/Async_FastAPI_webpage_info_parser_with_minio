@@ -195,8 +195,13 @@ async def delete_website(
 @app.get(
     WEBSITE_ROUTES + "/{website_id}/picture_links",
     status_code=status.HTTP_200_OK,
-    response_model=List[str],
     responses={
+        200: {
+            "model": List[str],
+            "content": {
+                "application/json": {"example": ["url_1.jpg", "url_2.png"]},
+            },
+        },
         404: {"model": NotFoundErrorSchema},
         500: {"model": ConnectionErrorSchema},
     },
