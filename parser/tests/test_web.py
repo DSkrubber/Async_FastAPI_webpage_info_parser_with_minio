@@ -1,5 +1,5 @@
-from app.main import app
+from app.main import main_logger
 
 
 def test_some_test() -> None:
-    assert app
+    assert main_logger
