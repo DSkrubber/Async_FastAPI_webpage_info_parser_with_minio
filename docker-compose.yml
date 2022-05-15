@@ -1,9 +1,123 @@
 version: "3.9"
 
 services:
-  web:
-    image: application
+  minio:
+    image: "bitnami/minio:2022.4.30"
+    container_name: minio
+    environment:
+      - MINIO_ROOT_USER=${AWS_ACCESS_KEY_ID:-"minioadmin"}
+      - MINIO_ROOT_PASSWORD=${AWS_SECRET_ACCESS_KEY:-"minioadmin"}
     ports:
-      - "8082:8082"
+      - ${MINIO_PORT:-9000}:${MINIO_PORT:-9000}
+      - "9001:9001"
+    networks:
+      - web_minio_parser_net
+
+  web:
+    image: web
+    container_name: web
+    ports:
+      - ${APP_PORT:-8080}:${APP_PORT:-8080}
+    env_file:
+      - ./web/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - web_minio_parser_net
     volumes:
-      - ./app:/opt/application/app
+      - ./web/app:/opt/web/app
+      - ./web/alembic:/opt/web/alembic
+      - logs:/opt/web/documentation
+
+  parser:
+    image: parser
+    container_name: parser
+    ports:
+      - ${APP_PORT:-8081}:${APP_PORT:-8081}
+    env_file:
+      - ./parser/.env
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - web_minio_parser_net
+    volumes:
+      - ./parser/app:/opt/parser/app
+      - logs:/opt/parser/documentation
+
+  db:
+    image: postgres:13.4
+    container_name: postgresql
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-"admin"}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-"admin"}
+      - POSTGRES_DB=${POSTGRES_DB:-"postgres"}
+    ports:
+      - ${POSTGRES_PORT:-5432}:${POSTGRES_PORT:-5432}
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      - minio
+      - parser
+    networks:
+      - web_minio_parser_net
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    restart: unless-stopped
+    depends_on:
+      - minio
+    networks:
+      - web_minio_parser_net
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    ports:
+      - ${KAFKA_PORT:-9092}:${KAFKA_PORT:-9092}
+    environment:
+      KAFKA_CREATE_TOPICS: "${KAFKA_PARSER_TOPIC:-'parser'}:1:1,${KAFKA_UPDATER_TOPIC:-'updater'}:1:1"
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_offsets_topic_replication_factor: 1
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server 127.0.0.1:9092 --topic ${KAFKA_PARSER_TOPIC:-'parser'} --describe"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - web_minio_parser_net
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui
+    container_name: kafka-ui
+    ports:
+      - "9093:8080"
+    restart: always
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=kafka
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:${KAFKA_PORT:-9092}
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+      - KAFKA_CLUSTERS_0_READONLY=true
+    networks:
+      - web_minio_parser_net
+
+networks:
+  web_minio_parser_net:
+
+volumes:
+  logs:
+
