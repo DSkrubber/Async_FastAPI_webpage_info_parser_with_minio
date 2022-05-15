@@ -14,6 +14,13 @@ main_logger = get_logger(__name__)
 
 
 async def parser_script() -> None:
+    """Main async script to run aiokafka consumer and producer.
+
+    Loads webpages text for consumed message URL via aiohttp, parses webpage
+    data, loads images from links, uploads images to minio storage and sends
+    messages via producer to web microservice to update webpage entity in db.
+    :return: None
+    """
     consumer = await get_consumer()
     producer = await get_producer()
     user_agents = user_agent_cycle()

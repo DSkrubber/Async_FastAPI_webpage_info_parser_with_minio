@@ -14,9 +14,8 @@ from aiokafka.errors import KafkaError
 from bs4 import BeautifulSoup, SoupStrainer
 
 from .constants import (
-    KAFKA_HOST,
     KAFKA_PARSER_TOPIC,
-    KAFKA_PORT,
+    KAFKA_SERVER,
     KAFKA_UPDATER_TOPIC,
     PARSER_GROUP_ID,
     USER_AGENTS,
@@ -34,13 +33,24 @@ class ParsingStatus(str, Enum):
 
 
 def user_agent_cycle() -> Iterator[str]:
+    """Helper function which returns an Iterator that yields user-agents in
+
+    infinite cycle.
+    :return: functools cycle for user-agents strings.
+    """
     return cycle(USER_AGENTS)
 
 
 async def get_producer() -> AIOKafkaProducer:
+    """Connects to kafka topic, starts and returns producer with custom value
+
+    serializer. Will produce exactly one copy of message in kafka "updater"
+    topic.
+    :return: AIOKafkaProducer instance.
+    """
     try:
         producer = AIOKafkaProducer(
-            bootstrap_servers=f"{KAFKA_HOST}:{KAFKA_PORT}",
+            bootstrap_servers=KAFKA_SERVER,
             enable_idempotence=True,
             value_serializer=lambda msg: json.dumps(msg).encode("utf-8"),
         )
@@ -51,10 +61,15 @@ async def get_producer() -> AIOKafkaProducer:
 
 
 async def get_consumer() -> AIOKafkaConsumer:
+    """Connects to kafka "parser" topic, starts and returns consumer with
+
+    custom value deserializer.
+    :return: AIOKafkaConsumer instance.
+    """
     try:
         consumer = AIOKafkaConsumer(
             KAFKA_PARSER_TOPIC,
-            bootstrap_servers=f"{KAFKA_HOST}:{KAFKA_PORT}",
+            bootstrap_servers=KAFKA_SERVER,
             group_id=PARSER_GROUP_ID,
             auto_offset_reset="earliest",
             value_deserializer=lambda message: json.loads(message),
@@ -68,6 +83,12 @@ async def get_consumer() -> AIOKafkaConsumer:
 async def send_message(
     producer: AIOKafkaProducer, message: Dict[str, Any]
 ) -> None:
+    """Sends provided message to "updater" topic via AIOKafkaProducer.
+
+    :param producer: AIOKafkaProducer instance connected to bootstrap_server.
+    :param message: Dict with key: values data to send via kafka topic.
+    :return: None.
+    """
     try:
         response = await producer.send_and_wait(KAFKA_UPDATER_TOPIC, message)
         send_time = datetime.fromtimestamp(response.timestamp / 1000)
@@ -79,6 +100,11 @@ async def send_message(
 
 
 def parse_data(html_page: str) -> List[str]:
+    """Get list of all img href tags from provided HTML page via bs4.
+
+    :param html_page: webpage HTML text data.
+    :return: list with pictures links.
+    """
     picture_links = []
     soup = BeautifulSoup(html_page, "lxml", parse_only=SoupStrainer("img"))
     for img in soup.find_all("img"):
@@ -91,6 +117,20 @@ def parse_data(html_page: str) -> List[str]:
 async def load_pictures(
     url: str, producer: AIOKafkaProducer, user_agent: str
 ) -> None:
+    """Loads html text data for webpage URL, get html length, parses images
+
+    links for provided URL and uploads images data to minio storage
+    asynchronously. Updates webpage entity data in web microservice database
+    via AIOKafkaProducer. Sends "in_progress" status for pages that are going
+    to be proceed, "finished" - if all data for webpage was proceeded (also
+    sends html length and list of minio keys), in case of any parser errors -
+    sends "failed" status.
+
+    :param url: webpage URL to get data from.
+    :param producer: AIOKafkaProducer instance connected to kafka topic.
+    :param user_agent: custom user-agent to aiohttp request headers.
+    :return: None.
+    """
     timeout = ClientTimeout(total=60)
     headers = {"user-agent": user_agent}
     message_default: Dict[str, Any] = {
@@ -103,6 +143,7 @@ async def load_pictures(
             html = await load_page_data(session, url, headers)
             picture_parser = partial(parse_data, html_page=html)
             loop = asyncio.get_running_loop()
+            # Run blocking bs4 parsing task concurrently in Executor.
             pictures_urls = await loop.run_in_executor(None, picture_parser)
             pictures_keys = await upload_pictures_to_minio(
                 url, pictures_urls, headers, session
@@ -123,6 +164,13 @@ async def load_pictures(
 async def load_page_data(
     session: Session, url: str, header: Dict[str, str]
 ) -> str:
+    """Loads webpage HTML text data via aiohttp with provided user-agent header
+
+    :param session: opened aiohttp session.
+    :param url: URLs of webpage to download.
+    :param header: custom user-agent header for aiohttp request.
+    :return: opened aiohttp session.
+    """
     async with session.get(url, headers=header, allow_redirects=False) as page:
         parser_logger.info(f"Response status code for {url} - {page.status}")
         html: str = await page.text()

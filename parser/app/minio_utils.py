@@ -20,6 +20,12 @@ minio_logger = get_logger(__name__)
 
 @asynccontextmanager
 async def get_client(session: AioSession) -> AsyncIterator[AioBaseClient]:
+    """Connects to minio storage bucket with provided credentials.
+
+    Checks that bucket exists and yields aiobotocore Session client instance
+    for parser functions.
+    :return: aiobotocore Session client.
+    """
     async with session.create_client(
         "s3",
         endpoint_url=S3_ENDPOINT_URL,
@@ -42,6 +48,14 @@ async def upload_pictures_to_minio(
     headers: Dict[str, str],
     aiohttp_session: aiohttp.ClientSession,
 ) -> List[str]:
+    """Loads images data for webpage URL via aiohttp and saves data to minio.
+
+    :param webpage_url: URL of webpage to download images for.
+    :param pictures_urls: URLs of pictures to download.
+    :param headers: custom user-agent header for aiohttp request.
+    :param aiohttp_session: opened aiohttp session.
+    :return: list of minio picture objects keys.
+    """
     pictures_keys = []
     for picture_url in pictures_urls:
         key = str(
@@ -63,6 +77,13 @@ async def upload_pictures_to_minio(
 async def save_minio_picture(
     minio_client: AioBaseClient, key: str, data: bytes
 ) -> None:
+    """Saves bytes image data to minio storage with async client and object key
+
+    :param minio_client: aiobotocore Session client connected to minio storage.
+    :param key: new minio object's key.
+    :param data: encoded picture data in bytes.
+    :return: None.
+    """
     try:
         await minio_client.put_object(Bucket=MINIO_BUCKET, Key=key, Body=data)
     except (ClientError, BotoCoreError) as error:
@@ -70,4 +91,9 @@ async def save_minio_picture(
 
 
 def build_key(url: str) -> Path:
+    """Helper function to construct minio key parts for provided URL.
+
+    :param url: URL to transform into key part.
+    :return: pathlib Path object for key part.
+    """
     return Path(url.split("://")[1].replace("/", "_"))

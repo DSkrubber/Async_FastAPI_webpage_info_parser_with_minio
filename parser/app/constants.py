@@ -16,7 +16,7 @@ KAFKA_HOST = os.environ.get("KAFKA_HOST", "kafka")
 KAFKA_PORT = os.environ.get("KAFKA_PORT", 9092)
 KAFKA_PARSER_TOPIC = os.environ.get("KAFKA_PARSER_TOPIC", "parser")
 KAFKA_UPDATER_TOPIC = os.environ.get("KAFKA_UPDATER_TOPIC", "updater")
-
+KAFKA_SERVER = f"{KAFKA_HOST}:{KAFKA_PORT}"
 PARSER_GROUP_ID = "parsers"
 
 with open("./documentation/user_agents.txt") as agents_file:
