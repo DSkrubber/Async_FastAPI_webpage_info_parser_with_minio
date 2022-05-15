@@ -5,7 +5,7 @@ log_format = (
     "%(asctime)s - [%(levelname)s] - %(name)s - "
     "(%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
 )
-file_handler = logging.FileHandler("./documentation/web.log")
+file_handler = logging.FileHandler("./logs/web.log")
 stream_handler = logging.StreamHandler(sys.stdout)
 logging.basicConfig(
     format=log_format, level="INFO", handlers=(file_handler, stream_handler)

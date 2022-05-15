@@ -28,7 +28,7 @@ services:
     volumes:
       - ./web/app:/opt/web/app
       - ./web/alembic:/opt/web/alembic
-      - logs:/opt/web/documentation
+      - logs:/opt/web/log
 
   parser:
     image: parser
@@ -44,7 +44,7 @@ services:
       - web_minio_parser_net
     volumes:
       - ./parser/app:/opt/parser/app
-      - logs:/opt/parser/documentation
+      - logs:/opt/parser/logs
 
   db:
     image: postgres:13.4

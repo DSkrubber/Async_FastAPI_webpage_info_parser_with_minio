@@ -32,7 +32,7 @@ repos:
       - --strict
       - --explicit-package-bases
       - --namespace-packages
-      exclude: parser/tests/|web/
+      exclude: parser/tests/|parser/documentation/|web/
     - id: mypy
       name: mypy_web
       language: python

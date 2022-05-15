@@ -7,6 +7,8 @@ RUN export POETRY_HOME=/opt/poetry && curl -sSL https://raw.githubusercontent.co
 COPY poetry.lock pyproject.toml ./
 RUN poetry config virtualenvs.create false
 COPY ./app ./app
+COPY ./documentation/user_agents.txt ./documentation/
+
 
 FROM base AS build
 

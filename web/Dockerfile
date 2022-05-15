@@ -10,6 +10,7 @@ COPY ./app ./app
 COPY ./alembic ./alembic
 COPY ./documentation/openapi.yaml ./documentation/
 
+
 FROM base AS build
 
 RUN poetry update && poetry install --no-root --no-dev
