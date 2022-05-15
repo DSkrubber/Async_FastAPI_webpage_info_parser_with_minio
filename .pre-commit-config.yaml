@@ -1,17 +1,17 @@
 fail_fast: true
 repos:
-  - repo: https://github.com/psf/black
-    rev: 22.3.0
-    hooks:
-    - id: black
-      args:
-        - --line-length=79
   - repo: https://github.com/PyCQA/isort
     rev: 5.10.1
     hooks:
     - id: isort
       args:
         - --profile=black
+        - --line-length=79
+  - repo: https://github.com/psf/black
+    rev: 22.3.0
+    hooks:
+    - id: black
+      args:
         - --line-length=79
   - repo: https://github.com/PyCQA/flake8
     rev: 4.0.1
@@ -21,6 +21,7 @@ repos:
     rev: v0.942
     hooks:
     - id: mypy
+      name: mypy_parser
       language: python
       require_serial: true
       args:
@@ -29,7 +30,22 @@ repos:
       - --scripts-are-modules
       - --allow-untyped-decorators
       - --strict
-      exclude: tests/
+      - --explicit-package-bases
+      - --namespace-packages
+      exclude: parser/tests/|web/
+    - id: mypy
+      name: mypy_web
+      language: python
+      require_serial: true
+      args:
+      - --no-strict-optional
+      - --ignore-missing-imports
+      - --scripts-are-modules
+      - --allow-untyped-decorators
+      - --strict
+      - --explicit-package-bases
+      - --namespace-packages
+      exclude: web/tests/|web/alembic/|web/documentation/|/parser
       additional_dependencies:
         - "pydantic"
   - repo: https://github.com/commitizen-tools/commitizen
