@@ -1,41 +1,43 @@
 name: github_pust_test
 on: [push]
-jobs:
-  test:
-    runs-on: ubuntu-latest
 
+jobs:
+  test_parser:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        directory: [parser, web]
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
     steps:
     - name: Checkout repo
       uses: actions/checkout@v3
 
     - name: Print a greeting
       run: |
-        echo "The branch is ${{ github.ref }} of the ${{ github.repository }} repository has been cloned to the runner."
+        echo "The branch is ${{ github.ref }} of the ${{ github.repository }} repository \
+          has been cloned to the runner for ${{ matrix.directory }}."
 
     - name: Pulling testing image
       uses: docker://python:3.8-slim
 
     - name: Install dependencies
-      run: |
-        pip install --upgrade pip && pip install -r requirements.txt
+      run: pip install --upgrade pip && pip install -r requirements.txt
 
     - name: Lint with isort
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        isort --check . --line-length=79 --profile black
+      run: isort --check . --line-length=79 --profile black
 
     - name: Lint with black
-      run: |
-        black --check . --line-length=79
+      run: black --check . --line-length=79
 
     - name: Lint with flake8
-      run: |
-        flake8 .
+      run: flake8 .
 
     - name: Check with mypy
       run: |
-        mypy . --no-strict-optional --ignore-missing-imports --scripts-are-modules --allow-untyped-decorators --strict --exclude tests/
+        mypy . --no-strict-optional --ignore-missing-imports --scripts-are-modules \
+          --allow-untyped-decorators --strict --exclude alembic/ --exclude documentation/ --exclude tests/
 
-    - name: Test with pytest
-      run: |
-        pytest --cov=. ./tests 
+    - name: Unit tests with pytest
+      run: pytest --cov=. tests/
